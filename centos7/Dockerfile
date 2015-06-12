@@ -7,6 +7,7 @@ RUN rpm -ivh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.
 
 RUN yum update -y \
     && yum makecache \
+    && yum groupinstall -y 'Development Tools' \
     && yum install -y rpm-build yum-utils sudo tar \
     && yum clean packages #201506-1
 
