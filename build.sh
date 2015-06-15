@@ -36,8 +36,7 @@ if [ `id -un` != "build" ]; then
     ./build.sh "$@"
 else
     set -xe
-    #sudo yum install -y tar ccache
-    sudo yum-builddep -y "$LOC/$SPEC" || /bin/bash
+    sudo yum-builddep -y "$LOC/$SPEC"
     export CCACHE_DIR="$LOC/ccache"
     PATH="/usr/lib64/ccache:$PATH"
     if ! rpmbuild --define "_topdir $LOC" -ba "$LOC/$SPEC"; then
