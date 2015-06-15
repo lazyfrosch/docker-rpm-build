@@ -39,7 +39,17 @@ else
     sudo yum-builddep -y "$LOC/$SPEC"
     export CCACHE_DIR="$LOC/ccache"
     PATH="/usr/lib64/ccache:$PATH"
-    if ! rpmbuild --define "_topdir $LOC" -ba "$LOC/$SPEC"; then
+    dist=`rpmbuild -E %dist | sed 's/^\.//'`
+    shift
+    shift
+    if ! rpmbuild \
+        --define "_topdir $LOC" \
+        --define "_builddir %{_topdir}/BUILD/$dist" \
+        --define "_rpmdir %{_topdir}/RPMS/$dist" \
+        --define "_srcrpmdir %{_topdir}/SRPMS/$dist" \
+        -ba "$LOC/$SPEC" \
+        "$@"
+    then
         ret=$?
         echo "Spawning shell for debugging..."
         /bin/bash
