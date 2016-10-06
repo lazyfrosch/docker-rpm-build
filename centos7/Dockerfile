@@ -6,7 +6,7 @@ RUN yum update -y \
  && yum-config-manager --disable extras \
  && yum makecache \
  && yum install -y rpm-build rpmdevtools yum-utils sudo tar ccache make rpmlint gcc \
- && yum clean packages #20160922 \
+ && yum clean packages #20161006 \
  && sed -i 's/\(keepcache=\)0/\11/' /etc/yum.conf
 
 RUN adduser -u 1000 build \
