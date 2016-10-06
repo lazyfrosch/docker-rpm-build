@@ -2,26 +2,40 @@
 
 set -e
 
-IMAGE="$1"
-SPEC="$2"
+IMAGE="lazyfrosch/rpm-build:7"
+SPEC="$1"
+VENDOR="built with docker-rpm-build by lazyfrosch"
+CUSTOM_DIST=".lazyfrosch"
 
 usage() {
     (
         echo
-        echo "./build.sh <image> <spec>"
+        echo "./build.sh <spec> <options>"
         echo
     ) >&2
     exit 1
 }
 
-if [ "$IMAGE" = "" ]; then
-    echo "Please specify docker image!" >&2
-    usage
-fi
 if [ ! -f "$SPEC" ]; then
-    echo "Please specify spec file!" >&2
-    usage
+    if [ -n "$SPEC" ]; then
+        SPEC="SPECS/${SPEC}.spec"
+    fi
+    if [ ! -f "$SPEC" ]; then
+        echo "Please specify spec file!" >&2
+        usage
+    fi
 fi
+
+rpmbuild() {
+    dist=`rpm -E %dist | sed 's/\(\.centos\)\?$/'"$CUSTOM_DIST"'/'`
+    /usr/bin/rpmbuild \
+        --define "vendor $VENDOR" \
+        --define "dist $dist" \
+        --define "_topdir $LOC" \
+        --define "_rpmdir %{_topdir}/RPMS" \
+        --define "_srcrpmdir %{_topdir}/SRPMS" \
+    "$@"
+}
 
 LOC="/tmp/build"
 if [ `id -un` != "build" ]; then
@@ -36,23 +50,37 @@ if [ `id -un` != "build" ]; then
     ./build.sh "$@"
 else
     set -xe
-    sudo yum-builddep -y "$LOC/$SPEC"
     export CCACHE_DIR="$LOC/ccache"
     PATH="/usr/lib64/ccache:$PATH"
-    dist=`rpmbuild -E %dist | sed 's/^\.//'`
     shift
-    shift
-    if ! rpmbuild \
-        --define "_topdir $LOC" \
-        --define "_builddir %{_topdir}/BUILD/$dist" \
-        --define "_rpmdir %{_topdir}/RPMS/$dist" \
-        --define "_srcrpmdir %{_topdir}/SRPMS/$dist" \
-        -ba "$LOC/$SPEC" \
+
+    # getting sources
+    (cd SOURCES/ && spectool -g "../$SPEC")
+
+    t=`mktemp`
+    if ! rpmbuild --nodeps -bs "$LOC/$SPEC" > $t; then
+        ret=$?
+        echo "Building SRC RPM failed!" >&2
+        exit $ret
+    fi
+    srpm=`cat $t`
+    rm -f $t
+    srpm=`echo "$srpm" | sed 's/Wrote: //'`
+
+    sudo yum clean expire-cache
+    sudo yum-builddep -y "$srpm"
+    if ! rpmbuild -ba "$LOC/$SPEC" \
         "$@"
     then
         ret=$?
-        echo "Spawning shell for debugging..."
+        echo "Spawning shell for debugging..." >&2
         /bin/bash
+        exit $ret
+    fi
+
+    if ! rpmlint "$LOC/$SPEC"; then
+        ret=$?
+        echo "RPMlint failed!" >&2
         exit $ret
     fi
 fi

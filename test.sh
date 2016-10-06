@@ -2,23 +2,18 @@
 
 set -e
 
-IMAGE="$1"
-shift
+IMAGE="lazyfrosch/rpm-build:7"
 
 usage() {
     (
         echo
-        echo "./test <image> <command>"
+        echo "./test <command>"
         echo
     ) >&2
     exit 1
 }
 
-if [ "$IMAGE" = "" ]; then
-    echo "Please specify docker image!" >&2
-    usage
-fi
-if [ "$@" = "" ]; then
+if [ "$*" = "" ]; then
     echo "Please specify command!" >&2
     usage
 fi
@@ -33,7 +28,7 @@ if [ `id -un` != "build" ]; then
         -w "$LOC" \
         --rm \
         "$IMAGE" \
-    ./test.sh inside "$@"
+    ./test.sh "$@"
 else
     set -xe
     $@
